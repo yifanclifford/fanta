@@ -165,6 +165,7 @@ void Graph::check (void)
 //yifan
     void Graph::remove(int fromlabel, int elabel, int tolabel)
     {
+    	printf("(%d,%d,%d)\n",fromlabel,elabel,tolabel);
         for (Graph::iterator from = this->begin(); from != this->end(); ++from) {
             for (Vertex::edge_iterator it = from->edge.begin();it != from->edge.end();) {
                 int fl = from->label;

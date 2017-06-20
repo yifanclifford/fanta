@@ -140,22 +140,25 @@ void Fanta::get_embeddings(Projected &projected) {
 	edge_map.clear();
 	int i = 0;
 	int id;
-//        std::vector<MyEdge> edges;
+
+	int l = DFS_CODE.nodeCount();
+
 	for (Projected::iterator cur = projected.begin(); cur != projected.end();
 			++cur) {
 		Embedding embedding;
+		embedding.vertices.resize(l);
 		PDFS* p = &(*cur);
-		embedding.vertices.push_back(p->edge->from);
-		for (; p; p = p->prev) {
-			embedding.vertices.push_back(p->edge->to);
+		for (int j = DFS_CODE.size() - 1; j >= 0; --j) {
+			embedding.vertices[DFS_CODE[j].to] = p->edge->to;
+			embedding.vertices[DFS_CODE[j].from] = p->edge->from;
 			if (m.find(p->edge->id) == m.end()) {
 				id = i;
 				m[p->edge->id] = id;
-//                    edge_map[id] = p->edge->id;
 				++i;
 			} else
 				id = m[p->edge->id];
 			embedding.edges.push_back(id);
+			p = p->prev;
 		}
 		embeddings.push_back(embedding);
 	}
@@ -203,21 +206,32 @@ void Fanta::edge_expected(Projected_map3 &root) {
 				printf("edge (%d,%d,%d)", fromlabel->first, elabel->first,
 						tolabel->first);
 //                    index_watch.resume();
+				DFS_CODE.push(0, 1, fromlabel->first, elabel->first,
+						tolabel->first);
 				get_embeddings(tolabel->second);
+				DFS_CODE.pop();
 //                    index_watch.pause();
 				endpoint = support_exact();
 //                    printf(" endpoint=%d ",endpoint);
 				if (endpoint < sigma) {
 					printf(" is infrequent\n");
-					G.remove(fromlabel->first, elabel->first, tolabel->first);
 					tolabel = root[fromlabel->first][elabel->first].erase(
 							tolabel);
+//					G.remove(fromlabel->first, elabel->first, tl);
+//					for (Projected_iterator3 fl = root.begin();
+//							fl != root.end(); ++fl)
+//						for (Projected_iterator2 el = fl->second.begin();
+//								el != fl->second.end(); ++el)
+//							for (Projected_iterator1 tl = el->second.begin();
+//									tl != el->second.end(); ++tl)
+//								printf("(%d,%d,%d)\n", fl->first, el->first,
+//										tl->first);
 					continue;
 				}
 				std::vector<double>&pro =
 						edge_pros[fromlabel->first][elabel->first][tolabel->first];
 				std::vector<double> spro;
-				for (int i = 0; i < endpoint; ++i)
+				for (unsigned int i = 0; i < endpoint; ++i)
 					spro.push_back(1.0);
 				compute_watch.resume();
 				bool frequent = support_expected(pro, spro);
@@ -225,7 +239,6 @@ void Fanta::edge_expected(Projected_map3 &root) {
 				if (!frequent) {
 //                        printf(" [%.2f,%.2f] ", lower, upper);
 					printf(" is infrequent\n");
-					G.remove(fromlabel->first, elabel->first, tolabel->first);
 					tolabel = root[fromlabel->first][elabel->first].erase(
 							tolabel);
 					continue;
@@ -342,12 +355,11 @@ void Fanta::project_expected(FANTA::Projected &projected,
 //        printf("size=%d\n",maxpat);
 	if (!DFS_CODE.check_label(maxnode) || DFS_CODE.size() > maxpat)
 		return;
-
+	get_embeddings(projected);
 	std::vector<double> pro;
 	if (DFS_CODE.size() > 1) {
 		std::cout << "pattern ";
 		DFS_CODE.write(std::cout);
-		get_embeddings(projected);
 //            printf("get embedding finishes\n");
 		endpoint = support_exact();
 		if (endpoint < sigma) {
@@ -953,11 +965,16 @@ double Fanta::compute_probabilistic(int n) {
 }
 
 void Fanta::report() {
-	*os << "t # " << ID++ << " [" << lower << "," << upper << "]" << std::endl;
-	//*os << "t # " << ID++ << std::endl;
+//	printf("reported!\n");
+	*os << "t # " << ID++ << std::endl;
+//	*os << "t # " << ID++ << std::endl;
 	Graph g(directed);
 	DFS_CODE.toGraph(g);
 	g.write_pattern(*os);
+	*os << "lower=" << lower << std::endl;
+	*os << "upper=" << upper << std::endl;
+	for (Embedding emb : embeddings)
+		(*os) << emb << std::endl;
 }
 
 int Fanta::enumerate_extensions(FANTA::Projected &projected,
